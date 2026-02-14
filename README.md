@@ -1658,7 +1658,128 @@ Deliver a PR with:
 - UI kit components
 - Clerk theming applied
 - builder logo upload UI + project photo upload UI (even if upload backend is stubbed)
-- minimal refactors so screens use the UI kit and variables (no hard-coded hex values)
+- minimal refactors so screens use the UI kit and variables (no hard-coded hex You are Claude Code working inside this repo: buildquote-v3. Implement the following 4 features with minimal refactor. Keep existing builder RFQ flow working. Add only what’s required, and prefer small, composable components in /src/components and new Convex fields/tables rather than large rewrites.
+
+===============================================================================
+FEATURE 1 — “Face recognition sign-in” (practical, web-safe implementation)
+===============================================================================
+Context: This is a web app (Vite/React + Clerk). “Face ID” is not directly available on the web like native iOS apps. Implement the correct equivalent: passkeys / WebAuthn via Clerk, surfaced in UI as “Use Face ID / Passkey” when supported.
+
+Tasks:
+1) Enable Clerk passkeys/WebAuthn (follow Clerk docs). If the repo already uses Clerk, add a “Use passkey” sign-in option.
+2) On the Sign In screen:
+   - Add a toggle/CTA reading: “Enable Face ID / Passkey (recommended)”
+   - If device/browser supports it, show “Sign in with Face ID / Passkey”
+   - If not supported, hide CTA or show disabled helper text: “Not supported on this device/browser”
+3) Store user preference (enabled/disabled) per builder, so the UI remembers:
+   - Add optional field on builders table:
+     - authPreference: { passkeyEnabled?: boolean }
+4) UX requirements:
+   - Never block sign-in if passkey isn’t available.
+   - Use plain language. No hype.
+
+Deliverables:
+- Updated sign-in UI (component + screen)
+- Clerk passkey integration wired
+- Builder preference stored in Convex and read on dashboard
+
+===============================================================================
+FEATURE 2 — Builder logo upload (stored in Cloudflare R2)
+===============================================================================
+Goal: Builders can upload a company logo that appears on:
+- Builder Dashboard header
+- RFQ email/PDF exports later (just store now; wiring later ok)
+
+Data model changes (Convex):
+- Add to builders table:
+  - logoR2Key?: string
+  - logoUrl?: string   (if you generate a public URL) OR store just key and use signed URL later
+  - marketingOptIn?: boolean  (used in Feature 4)
+
+Backend:
+1) Create Convex mutation to request an upload URL for R2 (or use your existing R2 upload approach if already implemented):
+   - builder requests upload slot -> returns pre-signed URL + r2Key
+2) After upload, call another mutation to save logoR2Key (and logoUrl if applicable) onto builder record.
+3) Validate:
+   - image only (png/jpg/webp)
+   - max size (e.g. 2MB)
+   - square crop optional (nice-to-have)
+
+Frontend:
+- Add screen in onboarding OR builder settings:
+  - “Upload business logo”
+  - file picker + preview + save
+- Show logo (if exists) on Dashboard screen.
+
+===============================================================================
+FEATURE 3 — Add photo/image to project card
+===============================================================================
+Goal: Each project can have an optional thumbnail image (site photo, plan snippet, etc.) shown on the project cards on dashboard.
+
+Data model changes:
+- Add to projects table:
+  - imageR2Key?: string
+  - imageUrl?: string
+
+Backend:
+- Same upload flow pattern as Feature 2:
+  - getUploadUrl(projectId) -> upload -> saveProjectImage(projectId, imageR2Key, imageUrl?)
+
+Frontend:
+- On project create/edit screen (ProjectSetupScreen):
+  - add “Project photo (optional)” uploader
+- On dashboard project cards:
+  - show thumbnail if present
+  - fallback to initials/placeholder if not
+
+===============================================================================
+FEATURE 4 — Newsletter opt-in + sending capability
+===============================================================================
+Goal: Builders can opt-in to receive a newsletter. This is NOT transactional email; it’s marketing. Must be explicit opt-in and easy to change later.
+
+Data model changes:
+- Add to builders table:
+  - marketingOptIn: v.boolean() (default false)
+  - marketingOptInAt?: v.number()
+
+Frontend:
+- During sign up / first-run onboarding:
+  - Checkbox: “Send me occasional BuildQuote updates and relevant industry news.”
+  - Link: “Unsubscribe anytime.”
+- In Settings:
+  - toggle to change preference.
+
+Backend:
+1) Add mutation updateMarketingOptIn({ builderId, optIn })
+   - If optIn=true, set marketingOptInAt=now
+2) Create an admin-only function to export opted-in builder emails:
+   - listMarketingSubscribers() -> [{email, name, companyName}]
+   - Gate access by ADMIN_EMAILS env var.
+3) Do NOT build a full newsletter engine in-app yet. Just the opt-in + export list.
+4) Keep compliance basics:
+   - opt-in only
+   - store timestamp
+   - allow opt-out
+
+===============================================================================
+IMPLEMENTATION NOTES
+===============================================================================
+- Keep code style consistent with existing repo.
+- Add any new UI in:
+  - /src/app (screens)
+  - /src/components (reusable components)
+- Add any Convex functions in:
+  - /convex (new files ok)
+- If you add R2 helpers, put them in /src/lib and /convex/lib as appropriate.
+- Do not remove existing fields. Only extend.
+
+===============================================================================
+ACCEPTANCE CHECKLIST
+===============================================================================
+- Builder can enable passkey sign-in and sign in with it on supported devices.
+- Builder can upload logo; dashboard shows it.
+- Project can upload image; dashboard card shows it.
+- Builder can opt-in/out of newsletter; admin can export subscribers list; default is opt-out.
 
 
 
