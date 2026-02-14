@@ -1,4 +1,4 @@
-# BuildQuote-v4
+	# BuildQuote-v4
 BuildQuote V3 – AI‑Native Platform (Master Working Document)
 Part 1. BuildQuote Overview – Read Me
 BuildQuote is an AI‑native materials coordination platform for builders and trades. It is not an estimating tool, not a takeoff tool, and not a pricing engine. Its sole purpose is to help builders structure, coordinate, and send material quote requests (RFQs) to suppliers, while keeping judgement, compliance, and final decisions firmly with the builder and engineer.   BuildQuote sits between takeoff/estimating tools and suppliers. It assumes builders are competent professionals and uses AI only to assist with coordination, clarity, and speed — never authority.
@@ -1513,7 +1513,152 @@ All systems in this section:
 
 They are documented here to ensure clear boundaries, clean implementation, and long-term maintainability.
 
-End of section
+Codex — apply the “Option 1: Builder-Grade Industrial” colour system across the app using CSS variables + a small UI kit. Keep it mobile-first, calm, and professional (site office vibe). No bright/childish colours. Use brass sparingly and NEVER for warnings.
+
+PALETTE (LOCK THESE IN)
+- Primary (steel):        #2F3E4F
+- Secondary (slate):      #445C70
+- Background (concrete):  #F4F6F8
+- Surface (white):        #FFFFFF
+- Border (light):         #D7DEE6
+- Text (primary):         #1F2A33
+- Text (muted):           #5D6B78
+- Accent (brass):         #B08D57   (use sparingly: selected state, tiny highlights, small badges)
+- Success (muted green):  #3E7C59
+- Warning (muted amber):  #8A6A3D   (IMPORTANT: must be visually distinct from brass)
+- Danger (brick):         #A94442
+
+================================================================================
+1) CREATE TOKENS
+================================================================================
+Create /src/styles/tokens.css with variables (use these exact names):
+
+:root {
+  --bq-bg: #F4F6F8;
+  --bq-surface: #FFFFFF;
+  --bq-primary: #2F3E4F;
+  --bq-secondary: #445C70;
+  --bq-accent: #B08D57;
+  --bq-success: #3E7C59;
+  --bq-warning: #8A6A3D;
+  --bq-danger: #A94442;
+
+  --bq-text: #1F2A33;
+  --bq-text-muted: #5D6B78;
+  --bq-border: #D7DEE6;
+
+  --bq-radius-sm: 10px;
+  --bq-radius-md: 14px;
+  --bq-radius-lg: 18px;
+
+  --bq-shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --bq-shadow-md: 0 8px 24px rgba(0,0,0,.10);
+
+  --bq-space-1: 6px;
+  --bq-space-2: 10px;
+  --bq-space-3: 14px;
+  --bq-space-4: 18px;
+  --bq-space-5: 24px;
+
+  --bq-font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+Wire tokens.css into the main entry so all screens get it (main.tsx or index.css).
+
+================================================================================
+2) BASE STYLES (MOBILE FIRST)
+================================================================================
+Create /src/styles/base.css:
+- body background: var(--bq-bg)
+- default text color: var(--bq-text)
+- headings weight: 650–750
+- reduce visual noise: no heavy gradients, no neon accents
+- card spacing optimized for one-handed mobile use
+- max width on web: content container 720px centered
+
+================================================================================
+3) COMPONENT STYLES (BUTTONS / INPUTS / CARDS)
+================================================================================
+Create /src/styles/components.css with shared classes:
+
+Buttons:
+- min-height: 48px
+- radius: var(--bq-radius-md)
+- Primary: background var(--bq-primary), text white, subtle shadow
+- Secondary: white background, border var(--bq-border), text var(--bq-primary)
+- Accent button (rare): background var(--bq-accent), text white (use ONLY when needed)
+- Disabled: opacity 0.5 and no shadow
+- Press state: transform scale(0.98), background darken ~6–8%
+- Focus ring: 2px ring using var(--bq-accent) at low opacity
+
+Inputs:
+- 48px height
+- white background
+- border var(--bq-border)
+- focus border var(--bq-primary)
+- helper text uses var(--bq-text-muted)
+
+Cards:
+- background var(--bq-surface)
+- border var(--bq-border)
+- radius var(--bq-radius-lg)
+- shadow var(--bq-shadow-sm)
+
+Badges:
+- neutral badge: subtle tint of secondary
+- success badge: subtle tint of success
+- warning badge: subtle tint of warning (do not use brass for warning)
+- do NOT use bright yellows/oranges
+
+================================================================================
+4) UI KIT (REUSE EVERYWHERE)
+================================================================================
+Create /src/components/ui:
+- Button.tsx
+- IconButton.tsx
+- Card.tsx
+- TextField.tsx
+- Toggle.tsx
+- StickyFooter.tsx (for Next/Continue on mobile)
+
+Make the core screens use these components:
+DashboardScreen, ProjectSetupScreen, ScopeInputScreen, ComponentGroupsScreen, ReviewScreen, PreviewScreen.
+
+================================================================================
+5) FEATURE UI: UPLOAD BUILDER LOGO + PROJECT PHOTO
+================================================================================
+Builder logo:
+- In Builder Profile screen: add “Upload business logo” with preview.
+- Show logo on dashboard header if present.
+- Store the file as a URL on the builder record (or a profile record). Implement upload via existing R2 flow if present; otherwise stub UI + store placeholder URL for now.
+
+Project photo:
+- In Project Setup screen: add “Upload project photo (optional)” (plans/site photo/stage photo)
+- Show photo thumbnail on project cards.
+
+Constraints:
+- optional uploads
+- png/jpg/webp
+- max 2MB
+- clean placeholder if missing (no loud icons)
+
+================================================================================
+6) CLERK THEMING (LOOKS LIKE BUILDQUOTE)
+================================================================================
+Theme Clerk sign-in/up using Clerk appearance + custom CSS so it inherits:
+- tokens (colors, radii, font)
+- buttons and inputs matching our UI kit
+Do NOT leave default Clerk UI.
+
+================================================================================
+7) DELIVERABLES
+================================================================================
+Deliver a PR with:
+- tokens.css, base.css, components.css
+- UI kit components
+- Clerk theming applied
+- builder logo upload UI + project photo upload UI (even if upload backend is stubbed)
+- minimal refactors so screens use the UI kit and variables (no hard-coded hex values)
 
 
 
