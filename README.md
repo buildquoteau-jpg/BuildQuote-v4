@@ -1779,7 +1779,135 @@ ACCEPTANCE CHECKLIST
 - Builder can enable passkey sign-in and sign in with it on supported devices.
 - Builder can upload logo; dashboard shows it.
 - Project can upload image; dashboard card shows it.
-- Builder can opt-in/out of newsletter; admin can export subscribers list; default is opt-out.
+- Builder can opt-in/out of newsletter; admin can export subscribers list; default is opt-You are a senior full-stack engineer. Work ONLY inside this repo. Do not invent new product flows beyond what is specified. Prefer adding new folders/files over refactoring existing builder code unless necessary.
+
+GOAL
+Implement Manufacturer Portal V1 + Admin Review Queue on top of the existing BuildQuote app.
+This repo already contains the builder RFQ flow (src/app/* screens and convex/*). We must ADD manufacturer/admin capabilities without breaking builder flows.
+
+NON-NEGOTIABLES
+- Enforce permissions in Convex (not only in UI).
+- Manufacturers can ONLY access their own manufacturer data.
+- Manufacturers can upload documents and (optionally) SKUs, but cannot create global systems.
+- Admin can approve/reject manufacturer submissions and documents.
+- No pricing anywhere.
+- All content is “advisory only” and must be labelled as such in UI.
+
+ROUTING (match current structure)
+Add new route folders under src/app:
+- src/app/manufacturer/*
+- src/app/admin/*
+Do NOT move existing builder screens.
+
+UI PAGES TO BUILD (simple, clean, mobile-friendly)
+Manufacturer:
+M0: src/app/manufacturer/ManufacturerDashboardScreen.tsx
+M1: src/app/manufacturer/systems/ManufacturerSystemsListScreen.tsx
+M2: src/app/manufacturer/systems/NewManufacturerSystemScreen.tsx
+M3: src/app/manufacturer/systems/ManufacturerSystemDetailScreen.tsx
+M4: src/app/manufacturer/documents/ManufacturerDocumentsListScreen.tsx
+M5: src/app/manufacturer/documents/ManufacturerDocumentUploadScreen.tsx
+
+Admin:
+A0: src/app/admin/ReviewQueueScreen.tsx
+
+CONVEX: DATA MODEL (ADD TABLES)
+Update convex/schema.ts to include these tables (keep existing tables):
+1) manufacturers:
+- name, website?, manufacturerType("proprietary"|"component"|"mixed"), status("pending"|"approved"|"suspended"), notesInternal?, createdAt, updatedAt
+
+2) manufacturerUsers:
+- manufacturerId, email, role("admin"|"editor"), active, createdAt, updatedAt
+Index by email and manufacturerId.
+
+3) systems (global system master):
+- nameGeneric, systemType("proprietary"|"non_proprietary"), primaryStages[], description?, driverComponentType, advisoryOnly(true), status("draft"|"approved"|"deprecated"), createdAt, updatedAt
+
+4) components (global component master):
+- nameGeneric, category("driver"|"dependent"|"accessory"), isDriver, createdAt, updatedAt
+
+5) systemComponents (system ↔ component map):
+- systemId, componentId, defaultIncluded, dependencyNotes?, uiOrder, createdAt, updatedAt
+Index by systemId and by systemId+uiOrder
+
+6) manufacturerSystems (manufacturer ↔ system mapping + approval):
+- manufacturerId, systemId, marketedName, isPrimarySupplier, status("draft"|"pending_review"|"approved"|"rejected"), rejectionReason?, createdAt, updatedAt
+Index by manufacturerId, systemId, status
+
+7) manufacturerSkus (ONLY for proprietary systems):
+- manufacturerId, systemId, componentId, skuCode, description, attributes{size?, length?, material?, treatment?, profile?, thickness?}, active, createdAt, updatedAt
+Index by manufacturerId, systemId, componentId, skuCode
+
+8) referenceDocuments (global reference docs stored in R2):
+- manufacturerId, systemId?, componentId?, docType("installation"|"technical"|"span_table"|"standard"),
+  source("manufacturer_pdf"|"standard"), title, version?, r2Key, advisoryOnly(true),
+  status("draft"|"pending_review"|"approved"|"rejected"), rejectionReason?, createdAt, updatedAt
+Index by manufacturerId, systemId, status, docType
+
+CONVEX: RBAC HELPERS
+Create convex/lib/rbac.ts:
+- getIdentityEmail()
+- getManufacturerUserByEmail()
+- requireManufacturerUser()
+- assertManufacturerRole(["admin","editor"])
+Also add a simple admin allowlist by email (env var ADMIN_EMAILS comma-separated) for admin actions.
+
+CONVEX: FUNCTIONS TO IMPLEMENT
+Create new files:
+- convex/manufacturerPortal.ts
+  Queries:
+    - myManufacturer()
+    - listMySystemMappings(status?)
+    - listMyDocuments(status?)
+    - listApprovedGlobalSystems()
+    - listApprovedComponentsForSystem(systemId)
+  Mutations:
+    - createSystemMappingDraft(systemId, marketedName, isPrimarySupplier)
+    - updateSystemMappingDraft(manufacturerSystemId, marketedName, isPrimarySupplier) [draft only]
+    - submitSystemMappingForReview(manufacturerSystemId)
+    - createReferenceDocDraft(systemId?, componentId?, docType, source, title, version?, r2Key)
+    - submitReferenceDocForReview(referenceDocumentId)
+
+- convex/adminApprovals.ts
+  Queries:
+    - listPending() => pending manufacturerSystems + pending referenceDocuments
+  Mutations:
+    - approveManufacturerSystem(id)
+    - rejectManufacturerSystem(id, reason)
+    - approveReferenceDoc(id)
+    - rejectReferenceDoc(id, reason)
+
+FILE UPLOAD (Cloudflare R2)
+V1 approach:
+- UI accepts file upload.
+- For now, store a placeholder r2Key input (manual paste) OR implement a simple upload endpoint using a server route if the repo already has one.
+DO NOT block the portal on perfect upload automation; implement the metadata + approval pipeline first.
+If implementing upload:
+- Create src/lib/r2Upload.ts helper that calls a backend endpoint to get a signed URL and PUT file.
+- Store returned r2Key on referenceDocuments.
+
+UI REQUIREMENTS
+- Each list has status filters: Draft / Pending / Approved / Rejected.
+- Rejected items show rejectionReason and allow edit+resubmit.
+- Add “Advisory only” label on all documents.
+- Keep copy neutral: no compliance, no “correct method”, no brand pushing.
+
+INTEGRATION
+- Add a navigation entry to reach manufacturer portal (e.g. /manufacturer) for logged-in manufacturerUsers.
+- Do not change builder dashboard flow.
+
+DELIVERABLES
+- All new screens compile.
+- Convex schema deploys and typechecks.
+- Manufacturer can create mapping draft and submit.
+- Manufacturer can create document draft and submit.
+- Admin can approve/reject both.
+- Existing builder flow remains unaffected.
+
+After implementation, provide:
+1) A short list of new files created/modified.
+2) How to create a manufacturer user record for testing.
+3) How to test M0–M5 and A0 flows.
 
 
 
